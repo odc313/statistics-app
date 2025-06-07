@@ -1,8 +1,9 @@
 document.addEventListener("DOMContentLoaded", function () {
   fetchAnalysis();
+  fetchMonthlyStats();
   document.getElementById("allDataForm").addEventListener("submit", saveAllData);
   document.getElementById("clearDataBtn").addEventListener("click", clearAllData);
-  document.getElementById("monthlyStatsBtn").addEventListener("click", toggleMonthlyStatsPopup);
+  document.getElementById("openStatsPopupBtn").addEventListener("click", toggleMonthlyStatsPopup);
 });
 
 async function saveAllData(event) {
@@ -34,10 +35,10 @@ async function saveAllData(event) {
     alert("❌ لا توجد بيانات لحفظها!");
     return;
   }
-  
+
   const confirmation = confirm("💾 هل تريد حفظ جميع البيانات الحالية؟");
   if (!confirmation) return;
-  
+
   try {
     const res = await fetch("/save-all", {
       method: "POST",
@@ -48,6 +49,7 @@ async function saveAllData(event) {
     if (result.success) {
       alert("✅ تم حفظ جميع البيانات بنجاح!");
       fetchAnalysis();
+      fetchMonthlyStats();
     } else {
       alert("❌ حدث خطأ أثناء حفظ البيانات!");
     }
@@ -74,28 +76,19 @@ async function fetchAnalysis() {
 async function clearAllData() {
   const confirmation = confirm("⚠️ هل أنت متأكد أنك تريد إزالة جميع البيانات المالية؟");
   if (!confirmation) return;
-  
+
   try {
     const res = await fetch("/clear-all", { method: "DELETE" });
     const result = await res.json();
     if (result.success) {
       alert("✅ تم حذف جميع البيانات!");
       fetchAnalysis();
+      fetchMonthlyStats();
     } else {
       alert("❌ حدث خطأ أثناء حذف البيانات!");
     }
   } catch (error) {
     console.error("❌ خطأ أثناء حذف البيانات:", error);
-  }
-}
-
-function toggleMonthlyStatsPopup() {
-  const popup = document.getElementById("monthlyStatsPopup");
-  if (popup.style.display === "block") {
-    popup.style.display = "none";
-  } else {
-    popup.style.display = "block";
-    fetchMonthlyStats();
   }
 }
 
@@ -109,7 +102,7 @@ async function fetchMonthlyStats() {
       container.innerHTML = "<p>📌 لا توجد بيانات متاحة.</p>";
       return;
     }
-    let list = `<ul class="stats-list">`;
+    let list = "<ul class=\"stats-list\">";
     for (const month in stats) {
       const data = stats[month];
       list += `<li class="stats-item">
@@ -121,10 +114,19 @@ async function fetchMonthlyStats() {
                  </ul>
                </li>`;
     }
-    list += `</ul>`;
+    list += "</ul>";
     container.innerHTML = list;
   } catch (error) {
     console.error("❌ خطأ أثناء جلب إحصائيات الأشهر:", error);
     document.getElementById("statsContainer").innerHTML = "<p>❌ حدث خطأ أثناء تحميل البيانات.</p>";
+  }
+}
+
+function toggleMonthlyStatsPopup() {
+  const popup = document.getElementById("monthlyStatsPopup");
+  if (popup.style.display === "block") {
+    popup.style.display = "none";
+  } else {
+    popup.style.display = "block";
   }
 }

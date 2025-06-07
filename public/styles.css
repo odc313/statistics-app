@@ -1,121 +1,235 @@
-/* 💰 إعدادات أساسية */
+/* إعدادات أساسية */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* تهيئة الجسم */
 body {
   font-family: "Poppins", sans-serif;
   background-color: #f0f2f5;
-  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 20px;
-  text-align: center;
+  min-height: 100vh;
 }
 
-/* 📦 تصميم الحاوية الرئيسية */
+/* الحاوية الرئيسية للتطبيق */
 .container {
-  background: #ffffff;
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
+  max-width: 600px;
+  background: #fff;
   border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 20px;
 }
 
-/* 🎨 تحسينات النصوص والعناوين */
-h1, h2 {
-  color: #333;
-  font-weight: bold;
-}
+/* تنظيم العناوين */
 h1 {
+  text-align: center;
   font-size: 24px;
-  margin-bottom: 20px;
+  color: #333;
+  margin-bottom: 15px;
 }
 h2 {
-  font-size: 20px;
+  text-align: center;
+  font-size: 18px;
+  color: #333;
+  margin: 8px 0;
+}
+
+/* تنظيم المدخل الخاص بالراتب الشهري (يفرض عرض كامل أو مركزي) */
+form > div.form-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-bottom: 15px;
+}
+form > div.form-group label {
+  flex: 0 0 80px;
+  font-size: 14px;
+  color: #555;
+}
+form > div.form-group input {
+  width: 60px;
+  transition: width 0.3s ease;
+  padding: 4px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  text-align: center;
+}
+form > div.form-group input:focus {
+  width: calc(100% - 80px);
+}
+
+/* تنظيم مجموعات المصروفات داخل fieldset باستخدام Grid */
+fieldset {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+legend {
+  font-size: 14px;
+  font-weight: bold;
+  color: #2d89ef;
+  padding: 0 5px;
+  grid-column: span 3;
+}
+
+/* لكل مجموعة داخل fieldset: ترتيب العنصر بنمط عمودي */
+fieldset div {
+  display: block;
+  text-align: center;
+}
+fieldset div label {
+  font-size: 14px;
+  color: #555;
+  margin-bottom: 3px;
+  display: block;
+}
+fieldset div input {
+  width: 60px;
+  transition: width 0.3s ease;
+  padding: 4px;
+  font-size: 12px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  text-align: center;
+  display: block;
+  margin: 0 auto;
+}
+fieldset div input:focus {
+  width: 100%;
+}
+
+/* تنسيق مجموعة الأزرار */
+.button-group {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
   margin-top: 15px;
 }
 
-/* 🔘 تصميم الأزرار */
+/* تنسيق الأزرار العامة مع دمج الأيقونات كخلفية */
 button {
-  background: linear-gradient(135deg, #2d89ef, #0058a3);
+  position: relative;
+  z-index: 1;
   border: none;
-  color: white;
-  font-size: 16px;
-  padding: 12px 18px;
-  margin: 10px;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 14px;
+  font-weight: bold;
   cursor: pointer;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease-in-out;
+  transition: transform 0.3s, background 0.3s;
+  overflow: hidden;
+  background: linear-gradient(135deg, #2d89ef, #0058a3);
+  color: #fff;
 }
 button:hover {
-  background: linear-gradient(135deg, #0058a3, #2d89ef);
   transform: scale(1.05);
+  background: linear-gradient(135deg, #0058a3, #2d89ef);
+}
+.btn-save::before,
+.btn-reset::before,
+.btn-report::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.2);
+}
+.btn-save::before {
+  content: "💾";
+}
+.btn-reset::before {
+  content: "🔄";
+}
+.btn-report::before {
+  content: "📊";
 }
 
-/* 📝 تصميم المدخلات */
-input[type="number"], input[type="text"] {
-  width: 100%;
-  padding: 8px;
-  margin-top: 5px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  font-size: 16px;
+/* تنسيق التخطيط الأفقي (للباقي من الصفحات إن وجدت) */
+.horizontal-wrapper {
+  display: flex;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+  gap: 15px;
+  scrollbar-width: none;
 }
-
-/* 📑 تحسينات النموذج */
-fieldset {
-  border: 1px solid #ccc;
-  padding: 15px;
-  border-radius: 5px;
-}
-legend {
-  font-weight: bold;
-  color: #0058a3;
-}
-
-/* 🎯 تصميم النوافذ المنبثقة */
-.popup {
+.horizontal-wrapper::-webkit-scrollbar {
   display: none;
+}
+.horizontal-wrapper > .horizontal-page {
+  flex: none;
+  width: 100%;
+  scroll-snap-align: start;
+}
+
+/* تنسيق النافذة المنبثقة */
+.popup {
   position: fixed;
-  left: 0;
   top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.6);
-  animation: fadeIn 0.3s ease-in-out;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 0.3s ease;
 }
 .popup-content {
-  background: white;
-  width: 80%;
-  max-width: 400px;
-  margin: 100px auto;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-  animation: slideIn 0.5s ease-in-out;
+  background: #fff;
+  padding: 10px;
+  border-radius: 5px;
+  width: 90%;
+  max-width: 300px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2);
+  animation: slideInVertical 0.3s ease;
+  margin: auto;
 }
 .close-btn {
-  float: right;
-  font-size: 24px;
-  cursor: pointer;
+  font-size: 20px;
   color: #888;
-}
-.close-btn:hover {
-  color: #000;
+  cursor: pointer;
+  float: right;
+  margin-top: -8px;
 }
 
-/* 🎭 تأثيرات */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideIn { from { transform: translateY(-20px); } to { transform: translateY(0); } }
+/* تأثيرات الرسوم المتحركة */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideInVertical {
+  from { transform: translateY(-10px); }
+  to { transform: translateY(0); }
+}
 
-/* 📱 دعم شاشات الجوال */
+/* استجابة الشاشات الصغيرة */
 @media (max-width: 600px) {
-  .container {
-    width: 95%;
-    padding: 15px;
-  }
-  button {
-    font-size: 14px;
-    padding: 10px;
-  }
-  .popup-content {
-    width: 90%;
-  }
+  .container { padding: 10px; }
+  h1 { font-size: 20px; }
+  h2 { font-size: 16px; }
+  form > div.form-group label { flex: 0 0 70px; font-size: 12px; }
+  form > div.form-group input { width: 50px; font-size: 12px; }
+  form > div.form-group input:focus { width: calc(100% - 70px); }
+  fieldset { grid-template-columns: repeat(3, 1fr); }
+  fieldset div input { width: 50px; }
+  fieldset div input:focus { width: 100%; }
+  button { padding: 5px 10px; font-size: 12px; }
 }

@@ -1,0 +1,121 @@
+/* 💰 إعدادات أساسية */
+body {
+  font-family: "Poppins", sans-serif;
+  background-color: #f0f2f5;
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+}
+
+/* 📦 تصميم الحاوية الرئيسية */
+.container {
+  background: #ffffff;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* 🎨 تحسينات النصوص والعناوين */
+h1, h2 {
+  color: #333;
+  font-weight: bold;
+}
+h1 {
+  font-size: 24px;
+  margin-bottom: 20px;
+}
+h2 {
+  font-size: 20px;
+  margin-top: 15px;
+}
+
+/* 🔘 تصميم الأزرار */
+button {
+  background: linear-gradient(135deg, #2d89ef, #0058a3);
+  border: none;
+  color: white;
+  font-size: 16px;
+  padding: 12px 18px;
+  margin: 10px;
+  cursor: pointer;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease-in-out;
+}
+button:hover {
+  background: linear-gradient(135deg, #0058a3, #2d89ef);
+  transform: scale(1.05);
+}
+
+/* 📝 تصميم المدخلات */
+input[type="number"], input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+/* 📑 تحسينات النموذج */
+fieldset {
+  border: 1px solid #ccc;
+  padding: 15px;
+  border-radius: 5px;
+}
+legend {
+  font-weight: bold;
+  color: #0058a3;
+}
+
+/* 🎯 تصميم النوافذ المنبثقة */
+.popup {
+  display: none;
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  animation: fadeIn 0.3s ease-in-out;
+}
+.popup-content {
+  background: white;
+  width: 80%;
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.5s ease-in-out;
+}
+.close-btn {
+  float: right;
+  font-size: 24px;
+  cursor: pointer;
+  color: #888;
+}
+.close-btn:hover {
+  color: #000;
+}
+
+/* 🎭 تأثيرات */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideIn { from { transform: translateY(-20px); } to { transform: translateY(0); } }
+
+/* 📱 دعم شاشات الجوال */
+@media (max-width: 600px) {
+  .container {
+    width: 95%;
+    padding: 15px;
+  }
+  button {
+    font-size: 14px;
+    padding: 10px;
+  }
+  .popup-content {
+    width: 90%;
+  }
+}

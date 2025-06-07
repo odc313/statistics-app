@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
 async function saveAllData(event) {
   event.preventDefault();
+  
   const monthlySalary = parseFloat(document.getElementById("monthlySalary").value);
   const expenseMedicine = parseFloat(document.getElementById("expenseMedicine").value);
   const expenseFood = parseFloat(document.getElementById("expenseFood").value);
@@ -19,20 +20,9 @@ async function saveAllData(event) {
   const expenseBills = parseFloat(document.getElementById("expenseBills").value);
   const expenseOther = parseFloat(document.getElementById("expenseOther").value);
 
-  let entries = [];
-  if (monthlySalary > 0) entries.push({ type: "income", amount: monthlySalary, category: "راتب شهري" });
-  if (expenseMedicine > 0) entries.push({ type: "expense", amount: expenseMedicine, category: "دواء" });
-  if (expenseFood > 0) entries.push({ type: "expense", amount: expenseFood, category: "طعام" });
-  if (expenseTransportation > 0) entries.push({ type: "expense", amount: expenseTransportation, category: "تنقل" });
-  if (expenseFamily > 0) entries.push({ type: "expense", amount: expenseFamily, category: "عائلة" });
-  if (expenseClothes > 0) entries.push({ type: "expense", amount: expenseClothes, category: "ملابس" });
-  if (expenseEntertainment > 0) entries.push({ type: "expense", amount: expenseEntertainment, category: "ترفيه" });
-  if (expenseEducation > 0) entries.push({ type: "expense", amount: expenseEducation, category: "تعليم" });
-  if (expenseBills > 0) entries.push({ type: "expense", amount: expenseBills, category: "فواتير" });
-  if (expenseOther > 0) entries.push({ type: "expense", amount: expenseOther, category: "مصروفات أخرى" });
-
-  if (entries.length === 0) {
-    alert("❌ لا توجد بيانات لحفظها!");
+  // التحقق من وجود الراتب الشهري على الأقل
+  if (isNaN(monthlySalary)) {
+    alert("❌ يجب إدخال الراتب الشهري");
     return;
   }
 
@@ -40,10 +30,22 @@ async function saveAllData(event) {
   if (!confirmation) return;
 
   try {
+    // إرسال البيانات بالهيكل المطلوب للخادم
     const res = await fetch("/save-all", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entries })
+      body: JSON.stringify({
+        monthlySalary,
+        expenseMedicine,
+        expenseFood,
+        expenseTransportation,
+        expenseFamily,
+        expenseClothes,
+        expenseEntertainment,
+        expenseEducation,
+        expenseBills,
+        expenseOther
+      })
     });
     const result = await res.json();
     if (result.success) {
@@ -124,9 +126,5 @@ async function fetchMonthlyStats() {
 
 function toggleMonthlyStatsPopup() {
   const popup = document.getElementById("monthlyStatsPopup");
-  if (popup.style.display === "block") {
-    popup.style.display = "none";
-  } else {
-    popup.style.display = "block";
-  }
+  popup.style.display = popup.style.display === "block" ? "none" : "block";
 }

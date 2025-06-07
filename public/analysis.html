@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>تحليل الميزانية المالية</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <h1>📊 تحليل الميزانية المالية</h1>
+    
+    <button onclick="fetchAnalysis()">عرض تحليل المدخرات</button>
+    <ul id="analysisResults"></ul>
+
+    <script>
+        async function fetchAnalysis() {
+            const res = await fetch("/analysis");
+            const data = await res.json();
+            const list = document.getElementById("analysisResults");
+            list.innerHTML = `
+                <li>💰 إجمالي المدخرات: ${data.total_savings} دينار</li>
+                <li>🕌 الزكاة (10%): ${data.zakat} دينار</li>
+                <li>❤️ الصدقة (10%): ${data.charity} دينار</li>
+                <li>✔ المبلغ المتبقي بعد الحسابات: ${data.remaining} دينار</li>
+            `;
+        }
+    </script>
+
+</body>
+</html>

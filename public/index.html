@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>إدارة الأموال المالية</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>💰 إدارة الأموال المالية</h1>
+    
+    <!-- نموذج إدخال البيانات المالية -->
+    <section id="entryFormSection">
+      <h2>إدخال البيانات المالية</h2>
+      <form id="allDataForm">
+        <div>
+          <label for="monthlySalary">الراتب الشهري:</label>
+          <input type="number" id="monthlySalary" name="monthlySalary" required>
+        </div>
+        
+        <!-- حقول المصروفات -->
+        <fieldset>
+          <legend>المصروفات</legend>
+          <div><label for="expenseMedicine">الدواء:</label> <input type="number" id="expenseMedicine" name="expenseMedicine" value="0" required></div>
+          <div><label for="expenseFood">الطعام:</label> <input type="number" id="expenseFood" name="expenseFood" value="0" required></div>
+          <div><label for="expenseTransportation">التنقل:</label> <input type="number" id="expenseTransportation" name="expenseTransportation" value="0" required></div>
+          <div><label for="expenseFamily">العائلة:</label> <input type="number" id="expenseFamily" name="expenseFamily" value="0" required></div>
+          <div><label for="expenseClothes">الملابس:</label> <input type="number" id="expenseClothes" name="expenseClothes" value="0" required></div>
+          <div><label for="expenseEntertainment">الترفيه:</label> <input type="number" id="expenseEntertainment" name="expenseEntertainment" value="0" required></div>
+          <div><label for="expenseEducation">التعليم:</label> <input type="number" id="expenseEducation" name="expenseEducation" value="0" required></div>
+          <div><label for="expenseBills">الفواتير:</label> <input type="number" id="expenseBills" name="expenseBills" value="0" required></div>
+          <div><label for="expenseOther">مصروفات أخرى:</label> <input type="number" id="expenseOther" name="expenseOther" value="0" required></div>
+        </fieldset>
+
+        <!-- زر حفظ البيانات -->
+        <button type="submit">💾 حفظ جميع البيانات</button>
+      </form>
+    </section>
+    
+    <!-- تحليل الميزانية المالية -->
+    <section id="analysis">
+      <h2>📊 تحليل الميزانية المالية</h2>
+      <ul id="analysisResults"></ul>
+    </section>
+
+    <!-- أزرار العرض والحذف -->
+    <div class="button-group">
+      <button id="clearDataBtn">🗑️ إزالة جميع البيانات</button>
+      <button id="monthlyStatsBtn">📊 عرض إحصائيات الأشهر السابقة</button>
+    </div>
+
+    <!-- النافذة المنبثقة لإحصائيات الأشهر -->
+    <div id="monthlyStatsPopup" class="popup">
+      <div class="popup-content">
+        <span class="close-btn" onclick="toggleMonthlyStatsPopup()">&times;</span>
+        <h2>📊 إحصائيات الأشهر السابقة</h2>
+        <div id="statsContainer"><p>📌 لا توجد بيانات متاحة.</p></div>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

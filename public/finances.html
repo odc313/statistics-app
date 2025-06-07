@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة الأموال المالية</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <h1>💰 إدارة أموالك بسهولة</h1>
+
+    <section id="salary">
+        <h2>💵 الراتب الشهري</h2>
+        <input type="number" id="salaryAmount" placeholder="المبلغ الشهري">
+    </section>
+
+    <section id="dailyRate">
+        <h2>📈 معدل الإدخار اليومي</h2>
+        <input type="number" id="dailySavings" placeholder="المعدل اليومي">
+    </section>
+
+    <section id="monthlyExpenses">
+        <h2>📉 المصروفات الشهرية</h2>
+        <table>
+            <tr><th>النوع</th><th>المبلغ</th></tr>
+            <tr><td>🍔 طعام</td><td><input type="number" id="foodExpense"></td></tr>
+            <tr><td>👕 ملابس</td><td><input type="number" id="clothingExpense"></td></tr>
+            <tr><td>🏠 العائلة</td><td><input type="number" id="familyExpense"></td></tr>
+            <tr><td>🏥 الطب</td><td><input type="number" id="medicalExpense"></td></tr>
+            <tr><td>🚗 النقل</td><td><input type="number" id="transportExpense"></td></tr>
+        </table>
+    </section>
+
+    <button onclick="saveAllData()">💾 حفظ جميع البيانات</button>
+<button onclick="clearMonthlyData()">🗑 تصفية البيانات الشهرية</button>
+    <script src="script.js"></script>
+
+</body>
+</html>

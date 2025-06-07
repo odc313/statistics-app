@@ -1,39 +1,41 @@
 const express = require('express');
-const path = require('path');
-const { exec } = require('child_process');
-
 const router = express.Router();
-const dbPath = path.join(__dirname, '../finance.db');
+const pool = require('../db'); // الملف الخاص بالاتصال بقاعدة البيانات
 
-router.get('/', (req, res) => {
-  const incomeQuery = `SELECT COALESCE(SUM(amount), 0) FROM funds WHERE type='income';`;
+router.get('/', async (req, res) => {
+  try {
+    // استعلام يجمع مجموع الراتب الشهري ومجموع المصروفات (عن طريق جمع كافة أعمدة المصروفات)
+    const query = `
+      SELECT 
+        COALESCE(SUM(monthly_salary), 0) AS total_income,
+        COALESCE(SUM(expense_medicine + expense_food + expense_transportation + expense_family +
+                     expense_clothes + expense_entertainment + expense_education + expense_bills + expense_other), 0)
+                     AS total_expense
+      FROM transactions
+      WHERE user_id = $1;
+    `;
+    // نستخدم user_id = 1، ويُمكنك تعديل ذلك إذا كان لديك معرف آخر مطلوب
+    const result = await pool.query(query, [1]);
+    const row = result.rows[0];
+    const totalIncome = parseFloat(row.total_income) || 0;
+    const totalExpense = parseFloat(row.total_expense) || 0;
 
-  exec(`sqlite3 ${dbPath} "${incomeQuery}"`, (incomeErr, incomeOut) => {
-    if (incomeErr) return res.status(500).json({ error: incomeErr.message });
+    // حساب الإدخار والصدقة
+    const readyForCharity = totalIncome - totalExpense;
+    const charity = readyForCharity * 0.10;
+    const readyForSaving = readyForCharity - charity;
 
-    const totalIncome = parseFloat(incomeOut.trim()) || 0;
-    const expenseQuery = `SELECT COALESCE(SUM(amount), 0) FROM funds WHERE type='expense';`;
-
-    exec(`sqlite3 ${dbPath} "${expenseQuery}"`, (expenseErr, expenseOut) => {
-      if (expenseErr) return res.status(500).json({ error: expenseErr.message });
-
-      const totalExpense = parseFloat(expenseOut.trim()) || 0;
-      // حساب الإدخار قبل خصم الصدقة
-      const readyForCharity = totalIncome - totalExpense;
-      // خصم الصدقة بنسبة 10%
-      const charity = readyForCharity * 0.10;
-      // الإدخار النهائي بعد خصم الصدقة
-      const readyForSaving = readyForCharity - charity;
-
-      res.json({
-        "💰 الراتب الشهري": totalIncome.toFixed(2),
-        "📉 المصروفات": totalExpense.toFixed(2),
-        "❤️ الصدقة": charity.toFixed(2),
-        "📌 جاهز للصدقة": readyForCharity.toFixed(2),
-        "💰 جاهز للادخار": readyForSaving.toFixed(2)
-      });
+    res.json({
+      "💰 الراتب الشهري": totalIncome.toFixed(2),
+      "📉 المصروفات": totalExpense.toFixed(2),
+      "❤️ الصدقة": charity.toFixed(2),
+      "📌 جاهز للصدقة": readyForCharity.toFixed(2),
+      "💰 جاهز للادخار": readyForSaving.toFixed(2)
     });
-  });
+  } catch (err) {
+    console.error("Error calculating financial analysis:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

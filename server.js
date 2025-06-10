@@ -2,26 +2,33 @@
 const express = require('express');
 const path = require('path');
 const pool = require('./db'); // تم استيراد الـ pool من ملف db.js الآن
+const cors = require('cors'); // إضافة cors
 
 const app = express();
 
+// إعداد CORS للسماح بالطلبات من نطاق GitHub Pages
+// تأكد من استبدال 'https://odc313.github.io' بنطاق GitHub Pages الفعلي الخاص بك إذا كان مختلفاً
+app.use(cors({
+  origin: 'https://odc313.github.io',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type'],
+}));
+
 // إعداد Express لمعالجة JSON والملفات الثابتة
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// app.use(express.static(path.join(__dirname, 'public'))); // هذا السطر لم يعد مطلوباً إذا كانت الواجهة الأمامية مستضافة بشكل منفصل
 
 // استيراد المسارات الأخرى المطلوبة فقط
 const analysisRouter = require('./routes/analysis');
 const monthlyStatsRouter = require('./routes/monthlyStats');
 const savingsRouter = require('./routes/savings'); // إضافة مسار المدخرات
-// تم إزالة استيراد incomeRouter و expenseRouter حيث لم يعدا مطلوبين
 
 // استخدام المسارات المطلوبة
 app.use('/analysis', analysisRouter);
 app.use('/monthly-stats', monthlyStatsRouter);
-app.use('/savings', savingsRouter); // استخدام مسار المدخرات
-// تم إزالة استخدام app.use('/income', ...) و app.use('/expense', ...)
+app.use('/savings', savingsRouter);
 
-// اختبار الاتصال بقاعدة البيانات (يتم هنا بعد الاستيراد من db.js)
+// اختبار الاتصال بقاعدة البيانات
 pool.connect()
   .then(client => {
     console.log("✅ اتصال ناجح بقاعدة البيانات");
@@ -34,13 +41,11 @@ pool.connect()
 */
 app.get('/transactions', async (req, res) => {
   try {
-    // يمكننا إضافة معيار جلب آخر سجل إذا تم طلبه
     const lastRecordOnly = req.query.last === 'true';
     let queryText = "SELECT * FROM transactions ORDER BY date DESC";
     let values = [];
 
     if (lastRecordOnly) {
-      // إذا تم طلب آخر سجل فقط
       queryText += " LIMIT 1";
     }
 
@@ -54,7 +59,6 @@ app.get('/transactions', async (req, res) => {
 
 /*
   نقطة النهاية لحذف كل البيانات المالية من جدول transactions
-  (يتم حذف كل السجلات دون التأثير على بنية الجدول)
 */
 app.delete('/clear-all', async (req, res) => {
   try {
@@ -68,7 +72,6 @@ app.delete('/clear-all', async (req, res) => {
 
 /*
   نقطة النهاية لحفظ البيانات المالية المُدخلة من الواجهة.
-  تقوم بتحديث سجل الميزانية الشهرية إذا كان موجوداً، أو إدخال سجل جديد إذا لم يكن موجوداً.
 */
 app.post('/save-all', async (req, res) => {
   try {
@@ -85,20 +88,15 @@ app.post('/save-all', async (req, res) => {
       expenseOther
     } = req.body;
 
-    // التحقق من وجود الراتب الشهري كحقل أساسي
     if (monthlySalary === undefined) {
       return res.status(400).json({ success: false, error: "حقل الراتب الشهري مطلوب." });
     }
 
-    // تحديد user_id (ثابت حالياً على 1)
     const userId = 1;
 
-    // الحصول على التاريخ الحالي وتنسيقه للشهر والسنة
     const currentDate = new Date();
-    // لتحديد بداية الشهر الحالي (على سبيل المثال: 2025-06-01)
     const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
 
-    // البحث عن سجل ميزانية موجود لهذا المستخدم ولهذا الشهر
     const checkQuery = `
       SELECT id FROM transactions
       WHERE user_id = $1 AND to_char(date, 'YYYY-MM') = to_char($2::timestamp, 'YYYY-MM');
@@ -106,7 +104,6 @@ app.post('/save-all', async (req, res) => {
     const checkResult = await pool.query(checkQuery, [userId, currentMonthStart]);
 
     if (checkResult.rows.length > 0) {
-      // سجل موجود، نقوم بالتحديث
       const recordId = checkResult.rows[0].id;
       const updateQuery = `
         UPDATE transactions
@@ -141,7 +138,6 @@ app.post('/save-all', async (req, res) => {
       const result = await pool.query(updateQuery, updateValues);
       res.json({ success: true, message: "تم تحديث الميزانية الشهرية بنجاح!", data: result.rows[0] });
     } else {
-      // لا يوجد سجل، نقوم بالإدراج
       const insertQuery = `
         INSERT INTO transactions
         (user_id, monthly_salary, expense_medicine, expense_food, expense_transportation, expense_family, expense_clothes, expense_entertainment, expense_education, expense_bills, expense_other, date)
@@ -169,8 +165,8 @@ app.post('/save-all', async (req, res) => {
   }
 });
 
-// تشغيل الخادم باستخدام المنفذ المحدد في البيئة أو 3000 افتراضياً
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 الخادم يعمل على http://localhost:${PORT}`);
 });
+

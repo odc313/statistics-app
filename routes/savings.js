@@ -1,10 +1,8 @@
 const express = require('express');
-const path = require('path');
-const { exec } = require('child_process');
 const router = express.Router();
-const dbPath = path.join(__dirname, '../finance.db');
+const pool = require('../db'); // تأكد من إعداد ملف db.js للاتصال بقاعدة بيانات PostgreSQL
 
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   const { amount, category, date } = req.body;
   if (!amount || !category || !date) {
     return res.status(400).json({ error: "يجب إدخال جميع القيم: المبلغ، الفئة، والتاريخ." });
@@ -13,37 +11,36 @@ router.post('/', (req, res) => {
   // نستخدم أول 7 حروف من التاريخ (YYYY-MM) لتحديد الشهر
   const yearMonth = date.substring(0, 7);
 
-  // البحث عن سجل موجود لنفس النوع ونفس الفئة لنفس الشهر
+  // البحث عن سجل موجود لنفس النوع ونفس الفئة لنفس الشهر باستخدام استعلام PostgreSQL
   const checkQuery = `
     SELECT id, amount FROM funds 
-    WHERE type='savings' AND category='${category}' AND date LIKE '${yearMonth}-%';
+    WHERE type = 'savings' AND category = $1 AND to_char(date, 'YYYY-MM') = $2;
   `;
+  
+  try {
+    const result = await pool.query(checkQuery, [category, yearMonth]);
 
-  exec(`sqlite3 ${dbPath} "${checkQuery}"`, (err, stdout) => {
-    if (err) return res.status(500).json({ error: err.message });
-
-    if (stdout.trim()) {
+    if (result.rows.length > 0) {
       // سجل موجود؛ نقوم بتحديث المبلغ التراكمي
-      const [id, oldAmount] = stdout.trim().split('|');
+      const { id, amount: oldAmount } = result.rows[0];
       const newAmount = parseFloat(oldAmount) + parseFloat(amount);
       const updateQuery = `
-        UPDATE funds SET amount='${newAmount}', date='${date}' WHERE id='${id}';
+        UPDATE funds SET amount = $1, date = $2 WHERE id = $3;
       `;
-      exec(`sqlite3 ${dbPath} "${updateQuery}"`, (updateErr) => {
-        if (updateErr) return res.status(500).json({ error: updateErr.message });
-        res.json({ message: "✅ تم تحديث المدخرات لهذا الشهر بنجاح!" });
-      });
+      await pool.query(updateQuery, [newAmount, date, id]);
+      res.json({ message: "✅ تم تحديث المدخرات لهذا الشهر بنجاح!" });
     } else {
       // لا يوجد سجل لهذا الشهر؛ نقوم بإضافة سجل جديد
       const insertQuery = `
-        INSERT INTO funds (type, category, amount, date) VALUES ('savings', '${category}', '${amount}', '${date}');
+        INSERT INTO funds (type, category, amount, date) 
+        VALUES ('savings', $1, $2, $3);
       `;
-      exec(`sqlite3 ${dbPath} "${insertQuery}"`, (insertErr) => {
-        if (insertErr) return res.status(500).json({ error: insertErr.message });
-        res.json({ message: "✅ تم إضافة سجل مدخرات جديد لهذا الشهر بنجاح!" });
-      });
+      await pool.query(insertQuery, [category, amount, date]);
+      res.json({ message: "✅ تم إضافة سجل مدخرات جديد لهذا الشهر بنجاح!" });
     }
-  });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

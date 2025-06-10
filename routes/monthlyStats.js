@@ -1,43 +1,44 @@
 const express = require('express');
-const { exec } = require('child_process');
-const path = require('path');
-
 const router = express.Router();
-const dbPath = path.join(__dirname, '../finance.db');
+const pool = require('../db'); // تأكد من إعداد ملف db.js بشكل صحيح للاتصال بقاعدة البيانات PostgreSQL
 
-router.get('/', (req, res) => {
-  const statsQuery = `
-    SELECT strftime('%Y-%m', date) as الشهر, 
-           COALESCE(SUM(CASE WHEN type='income' THEN amount ELSE 0 END), 0) as الراتب_الشهري,
-           COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END), 0) as المصروفات
-    FROM funds 
-    GROUP BY الشهر 
-    ORDER BY الشهر DESC;
-  `;
-
-  exec(`sqlite3 ${dbPath} "${statsQuery}"`, (err, stdout, stderr) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
-
-    let lines = stdout.trim().split("\n").filter(line => line.length > 0);
+router.get('/', async (req, res) => {
+  try {
+    const queryText = `
+      SELECT 
+        to_char(date, 'YYYY-MM') AS month,
+        COALESCE(SUM(monthly_salary), 0) AS monthly_income,
+        COALESCE(SUM(expense_medicine + expense_food + expense_transportation + expense_family +
+                     expense_clothes + expense_entertainment + expense_education + expense_bills + expense_other), 0)
+                     AS total_expense
+      FROM transactions
+      WHERE user_id = $1
+      GROUP BY month
+      ORDER BY month DESC;
+    `;
+    
+    const result = await pool.query(queryText, [1]);
+    
     let stats = {};
-    lines.forEach((line) => {
-      let [الشهر, الراتب_الشهري, المصروفات] = line.split("|");
-
-      // حساب الإدخار النهائي بعد خصم الصدقة؛
-      // إذ أن نسبة خصم الصدقة 10%، فإن الإدخار = (الراتب - المصروفات) * 0.90
-      let readyForSaving = (parseFloat(الراتب_الشهري) - parseFloat(المصروفات)) * 0.90;
-
-      stats[الشهر] = {
-        "💰 الراتب الشهري": parseFloat(الراتب_الشهري) || 0,
-        "📉 المصروفات": parseFloat(المصروفات) || 0,
+    result.rows.forEach(row => {
+      const monthlyIncome = parseFloat(row.monthly_income) || 0;
+      const totalExpense = parseFloat(row.total_expense) || 0;
+      // حسب التعليمات: الإدخار = (الراتب - المصروفات) * 0.90
+      const readyForSaving = (monthlyIncome - totalExpense) * 0.90;
+      
+      stats[row.month] = {
+        "💰 الراتب الشهري": monthlyIncome,
+        "📉 المصروفات": totalExpense,
         "💰 جاهز للادخار": readyForSaving.toFixed(2)
       };
     });
-
+    
     res.json(stats);
-  });
+    
+  } catch (err) {
+    console.error("Error fetching monthly stats:", err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 module.exports = router;

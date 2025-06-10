@@ -1,20 +1,25 @@
+// public/script.js
 document.addEventListener("DOMContentLoaded", function () {
-  // جلب آخر ميزانية شهرية عند تحميل الصفحة لملء حقول الإدخال
-  fetchLastMonthlyBudget();
-  // جلب التحليل الإجمالي عند تحميل الصفحة
-  fetchAnalysis();
-  // جلب إحصائيات الأشهر السابقة عند تحميل الصفحة
-  fetchMonthlyStats();
+  // تعريف Base URL للخادم المنشور
+  // تأكد من أن هذا URL هو الصحيح لتطبيقك على Render
+  const BASE_SERVER_URL = "https://statistics-app.onrender.com";
 
-  document.getElementById("allDataForm").addEventListener("submit", saveAllData);
-  document.getElementById("clearDataBtn").addEventListener("click", clearAllData);
+  // جلب آخر ميزانية شهرية عند تحميل الصفحة لملء حقول الإدخال
+  fetchLastMonthlyBudget(BASE_SERVER_URL);
+  // جلب التحليل الإجمالي عند تحميل الصفحة
+  fetchAnalysis(BASE_SERVER_URL);
+  // جلب إحصائيات الأشهر السابقة عند تحميل الصفحة
+  fetchMonthlyStats(BASE_SERVER_URL);
+
+  document.getElementById("allDataForm").addEventListener("submit", (event) => saveAllData(event, BASE_SERVER_URL));
+  document.getElementById("clearDataBtn").addEventListener("click", () => clearAllData(BASE_SERVER_URL));
   document.getElementById("openStatsPopupBtn").addEventListener("click", toggleMonthlyStatsPopup);
 });
 
 // وظيفة جديدة لجلب آخر ميزانية شهرية وملء النموذج
-async function fetchLastMonthlyBudget() {
+async function fetchLastMonthlyBudget(baseUrl) {
   try {
-    const res = await fetch("/transactions?last=true"); // طلب آخر سجل واحد
+    const res = await fetch(`${baseUrl}/transactions?last=true`); // طلب آخر سجل واحد
     const result = await res.json();
 
     if (result.success && result.data.length > 0) {
@@ -49,7 +54,7 @@ async function fetchLastMonthlyBudget() {
   }
 }
 
-async function saveAllData(event) {
+async function saveAllData(event, baseUrl) {
   event.preventDefault();
 
   const monthlySalary = parseFloat(document.getElementById("monthlySalary").value);
@@ -74,7 +79,7 @@ async function saveAllData(event) {
 
   try {
     // إرسال البيانات بالهيكل المطلوب للخادم
-    const res = await fetch("/save-all", {
+    const res = await fetch(`${baseUrl}/save-all`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -93,8 +98,8 @@ async function saveAllData(event) {
     const result = await res.json();
     if (result.success) {
       alert(result.message || "✅ تم حفظ جميع البيانات بنجاح!"); // استخدام الرسالة من الخادم
-      fetchAnalysis();
-      fetchMonthlyStats();
+      fetchAnalysis(baseUrl);
+      fetchMonthlyStats(baseUrl);
       // لا حاجة لـ fetchLastMonthlyBudget هنا لأن النموذج يظل بنفس القيم المدخلة
     } else {
       alert("❌ حدث خطأ أثناء حفظ البيانات: " + (result.error || ""));
@@ -105,9 +110,9 @@ async function saveAllData(event) {
   }
 }
 
-async function fetchAnalysis() {
+async function fetchAnalysis(baseUrl) {
   try {
-    const res = await fetch("/analysis");
+    const res = await fetch(`${baseUrl}/analysis`);
     const data = await res.json();
     document.getElementById("analysisResults").innerHTML = `
       <li><strong>💰 الراتب الشهري:</strong> ${parseFloat(data["💰 الراتب الشهري"]).toFixed(2)} دينار</li>
@@ -121,19 +126,19 @@ async function fetchAnalysis() {
   }
 }
 
-async function clearAllData() {
+async function clearAllData(baseUrl) {
   const confirmation = confirm("⚠️ هل أنت متأكد أنك تريد إزالة جميع البيانات المالية؟ هذا الإجراء لا يمكن التراجع عنه!");
   if (!confirmation) return;
 
   try {
-    const res = await fetch("/clear-all", { method: "DELETE" });
+    const res = await fetch(`${baseUrl}/clear-all`, { method: "DELETE" });
     const result = await res.json();
     if (result.success) {
       alert("✅ تم حذف جميع البيانات!");
       // بعد الحذف، قم بإعادة تعيين النموذج وعرض البيانات المحدثة
-      fetchLastMonthlyBudget(); // لإعادة تعيين النموذج إلى القيم الافتراضية (0)
-      fetchAnalysis();
-      fetchMonthlyStats();
+      fetchLastMonthlyBudget(baseUrl); // لإعادة تعيين النموذج إلى القيم الافتراضية (0)
+      fetchAnalysis(baseUrl);
+      fetchMonthlyStats(baseUrl);
     } else {
       alert("❌ حدث خطأ أثناء حذف البيانات: " + (result.error || ""));
     }
@@ -143,9 +148,9 @@ async function clearAllData() {
   }
 }
 
-async function fetchMonthlyStats() {
+async function fetchMonthlyStats(baseUrl) {
   try {
-    const res = await fetch("/monthly-stats");
+    const res = await fetch(`${baseUrl}/monthly-stats`);
     const stats = await res.json();
     const container = document.getElementById("statsContainer");
     container.innerHTML = ""; // مسح المحتوى القديم
@@ -181,7 +186,6 @@ function toggleMonthlyStatsPopup() {
 
 // إضافة وظائف لتنسيق الـ popup والـ horizontal-wrapper (لا يوجد لها تنسيقات حالياً)
 // يمكن وضعها في script.js إذا كانت بسيطة أو في styles.css إذا كانت معقدة.
-// سأفترض أنها ستكون بسيطة هنا مؤقتاً لتشغيل الواجهة
 // هذه مجرد أمثلة، يمكنك تعديلها في styles.css للحصول على تحكم أفضل
 
 // لفتح وغلق الـ popup بشكل صحيح (من الأفضل وضعها في styles.css)
@@ -290,4 +294,3 @@ style.innerHTML = `
   }
 `;
 document.head.appendChild(style); // إضافة التنسيقات مباشرة إلى DOM
-

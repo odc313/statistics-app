@@ -1,6 +1,7 @@
+// server.js
 const express = require('express');
 const path = require('path');
-const { Pool } = require('pg'); // استخدام مكتبة pg للتواصل مع PostgreSQL
+const pool = require('./db'); // استيراد الـ pool من ملف db.js
 
 const app = express();
 
@@ -8,24 +9,19 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// استيراد المسارات المختلفة من مجلد routes (حسب ملفاتك الحالية)
-const incomeRouter = require('./routes/income');
-const expenseRouter = require('./routes/expense');
+// استيراد المسارات الأخرى المطلوبة فقط
 const analysisRouter = require('./routes/analysis');
 const monthlyStatsRouter = require('./routes/monthlyStats');
+// const incomeRouter = require('./routes/income'); // هذا لم يعد مطلوبًا وسيتم حذفه
+// const expenseRouter = require('./routes/expense'); // هذا لم يعد مطلوبًا وسيتم حذفه
 
-app.use('/income', incomeRouter);
-app.use('/expense', expenseRouter);
+// استخدام المسارات المطلوبة
 app.use('/analysis', analysisRouter);
 app.use('/monthly-stats', monthlyStatsRouter);
+// app.use('/income', incomeRouter); // إزالة
+// app.use('/expense', expenseRouter); // إزالة
 
-// إعداد اتصال قاعدة بيانات PostgreSQL باستخدام متغير البيئة DATABASE_URL، مع توفير رابط افتراضي
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://sajid:z8WWp2IufsgqlmiI1kGgF413hNj61Z6a@dpg-d125sc95pdvs73cdba4g-a.oregon-postgres.render.com/finance_a24z',
-  ssl: { rejectUnauthorized: false } // ضروري في بيئات PostgreSQL السحابية
-});
-
-// اختبار الاتصال بقاعدة البيانات
+// اختبار الاتصال بقاعدة البيانات (يتم هنا بعد الاستيراد)
 pool.connect()
   .then(client => {
     console.log("✅ اتصال ناجح بقاعدة البيانات");
@@ -33,7 +29,7 @@ pool.connect()
   })
   .catch(err => console.error("❌ فشل الاتصال بقاعدة البيانات:", err.message));
 
-/* 
+/*
   نقطة نهاية لاسترجاع جميع المعاملات (اختياري ولكن مفيد للتحليل والاختبار)
 */
 app.get('/transactions', async (req, res) => {
@@ -46,8 +42,8 @@ app.get('/transactions', async (req, res) => {
   }
 });
 
-/* 
-  نقطة النهاية لحذف كل البيانات المالية من جدول transactions 
+/*
+  نقطة النهاية لحذف كل البيانات المالية من جدول transactions
   (يتم حذف كل السجلات دون التأثير على بنية الجدول)
 */
 app.delete('/clear-all', async (req, res) => {
@@ -62,8 +58,7 @@ app.delete('/clear-all', async (req, res) => {
 
 /*
   نقطة النهاية لحفظ البيانات المالية المُدخلة من الواجهة
-  يتم استلام مدخل واحد يحتوي على الراتب الشهري وجميع المصروفات،
-  ويتم إدراجه في جدول transactions مع تسجيل القيمة الافتراضية للمستخدم (user_id = 1).
+  (سيتم تعديلها لاحقاً لتدعم التحديث أيضاً)
 */
 app.post('/save-all', async (req, res) => {
   try {
@@ -79,19 +74,21 @@ app.post('/save-all', async (req, res) => {
       expenseBills,
       expenseOther
     } = req.body;
-    
+
     // التحقق من وجود الراتب الشهري كحقل أساسي
     if (monthlySalary === undefined) {
       return res.status(400).json({ success: false, error: "حقل الراتب الشهري مطلوب." });
     }
-    
+
+    // هنا سنضيف منطق التحقق من وجود سجل لنفس الشهر لتحديثه بدلاً من إدخال سجل جديد
+    // هذا الجزء سيتم تطويره في الخطوة التالية.
     const queryText = `
-      INSERT INTO transactions 
-      (user_id, monthly_salary, expense_medicine, expense_food, expense_transportation, expense_family, expense_clothes, expense_entertainment, expense_education, expense_bills, expense_other)
-      VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      INSERT INTO transactions
+      (user_id, monthly_salary, expense_medicine, expense_food, expense_transportation, expense_family, expense_clothes, expense_entertainment, expense_education, expense_bills, expense_other, date)
+      VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
       RETURNING *;
     `;
-    
+
     const values = [
       monthlySalary,
       expenseMedicine || 0,
@@ -104,7 +101,7 @@ app.post('/save-all', async (req, res) => {
       expenseBills || 0,
       expenseOther || 0,
     ];
-    
+
     const result = await pool.query(queryText, values);
     res.json({ success: true, data: result.rows[0] });
   } catch (error) {

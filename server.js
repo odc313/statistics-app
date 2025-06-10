@@ -12,11 +12,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 // استيراد المسارات الأخرى المطلوبة فقط
 const analysisRouter = require('./routes/analysis');
 const monthlyStatsRouter = require('./routes/monthlyStats');
+const savingsRouter = require('./routes/savings'); // إضافة مسار المدخرات
 // تم إزالة استيراد incomeRouter و expenseRouter حيث لم يعدا مطلوبين
 
 // استخدام المسارات المطلوبة
 app.use('/analysis', analysisRouter);
 app.use('/monthly-stats', monthlyStatsRouter);
+app.use('/savings', savingsRouter); // استخدام مسار المدخرات
 // تم إزالة استخدام app.use('/income', ...) و app.use('/expense', ...)
 
 // اختبار الاتصال بقاعدة البيانات (يتم هنا بعد الاستيراد من db.js)
@@ -28,11 +30,21 @@ pool.connect()
   .catch(err => console.error("❌ فشل الاتصال بقاعدة البيانات:", err.message));
 
 /*
-  نقطة نهاية لاسترجاع جميع المعاملات (اختياري ولكن مفيد للتحليل والاختبار)
+  نقطة نهاية لاسترجاع جميع المعاملات أو آخر معاملة (الميزانية الحالية)
 */
 app.get('/transactions', async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM transactions ORDER BY date DESC");
+    // يمكننا إضافة معيار جلب آخر سجل إذا تم طلبه
+    const lastRecordOnly = req.query.last === 'true';
+    let queryText = "SELECT * FROM transactions ORDER BY date DESC";
+    let values = [];
+
+    if (lastRecordOnly) {
+      // إذا تم طلب آخر سجل فقط
+      queryText += " LIMIT 1";
+    }
+
+    const result = await pool.query(queryText, values);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error("Error fetching transactions:", err.message);

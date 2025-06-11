@@ -31,14 +31,11 @@ pool.connect()
   .catch(err => console.error("❌ فشل الاتصال بقاعدة البيانات:", err.message));
 
 // نقطة نهاية لجلب آخر سجل واحد (هذا ما كانت تفعله في نسختك السابقة)
-// إذا كان هذا المسار يستخدم فقط لملء حقول الإدخال، فهذا هو الكود الصحيح.
-// إذا كان يستخدم للتحليل، فهذا هو سبب المشكلة في البداية
-// حيث لا يعرض التحليل المجمع للشهر الحالي.
+// هذه الوظيفة ستستخدم لملء حقول الإدخال.
 app.get('/transactions', async (req, res) => {
   try {
-    const userId = 1; // افترض أن المستخدم هو 1
+    const userId = 1;
 
-    // جلب آخر سجل للمستخدم
     const queryText = `
       SELECT * FROM transactions
       WHERE user_id = $1
@@ -50,7 +47,7 @@ app.get('/transactions', async (req, res) => {
     if (result.rows.length > 0) {
       res.json({ success: true, data: result.rows });
     } else {
-      res.json({ success: true, data: [] }); // لا توجد بيانات
+      res.json({ success: true, data: [] });
     }
   } catch (err) {
     console.error("Error fetching transactions:", err.message);
@@ -95,12 +92,11 @@ app.post('/save-all', async (req, res) => {
     const checkQuery = `
       SELECT * FROM transactions
       WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2
-      ORDER BY date DESC LIMIT 1; -- هذا قد يكون سبب المشكلة، يجلب آخر سجل واحد فقط
+      ORDER BY date DESC LIMIT 1;
     `;
     const checkResult = await pool.query(checkQuery, [userId, currentMonthFormatted]);
 
     if (checkResult.rows.length > 0) {
-      // سجل موجود للشهر الحالي، قم بالتحديث التراكمي
       const existingRecord = checkResult.rows[0];
       const recordId = existingRecord.id;
 

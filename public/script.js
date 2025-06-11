@@ -96,9 +96,9 @@ async function saveAllData(event, baseUrl) {
     });
     const result = await res.json();
     if (result.success) {
-      alert(result.message || "✅ تم حفظ جميع البيانات بنجاح!"); // استخدام الرسالة من الخادم
-      fetchAnalysis(baseUrl); // هذا المسار كان يجلب التحليل
-      fetchMonthlyStats(baseUrl); // هذا المسار كان يجلب التقارير
+      alert(result.message || "✅ تم حفظ جميع البيانات بنجاح!");
+      fetchAnalysis(baseUrl);         // هذا المسار كان يجلب التحليل
+      fetchMonthlyStats(baseUrl);     // هذا المسار كان يجلب التقارير
       // لا حاجة لـ fetchLastMonthlyBudget هنا لأن النموذج يظل بنفس القيم المدخلة
     } else {
       alert("❌ حدث خطأ أثناء حفظ البيانات: " + (result.error || ""));
@@ -134,7 +134,6 @@ async function clearAllData(baseUrl) {
     const result = await res.json();
     if (result.success) {
       alert("✅ تم حذف جميع البيانات!");
-      // بعد الحذف، قم بإعادة تعيين النموذج وعرض البيانات المحدثة
       fetchLastMonthlyBudget(baseUrl); // لإعادة تعيين النموذج إلى القيم الافتراضية (0)
       fetchAnalysis(baseUrl);
       fetchMonthlyStats(baseUrl);
@@ -152,7 +151,7 @@ async function fetchMonthlyStats(baseUrl) {
     const res = await fetch(`${baseUrl}/monthly-stats`); // هذا المسار كان يجلب التقارير
     const stats = await res.json();
     const container = document.getElementById("statsContainer");
-    container.innerHTML = ""; // مسح المحتوى القديم
+    container.innerHTML = "";
 
     if (!stats || Object.keys(stats).length === 0) {
       container.innerHTML = "<p>📌 لا توجد بيانات متاحة.</p>";

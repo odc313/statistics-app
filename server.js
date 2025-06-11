@@ -1,55 +1,52 @@
 // server.js
 const express = require('express');
 const path = require('path');
-const pool = require('./db'); // تم استيراد الـ pool من ملف db.js الآن
-const cors = require('cors'); // إضافة cors
+const pool = require('./db'); // التأكد من أن db.js موجود في نفس المجلد
+const cors = require('cors');
 
 const app = express();
 
-// إعداد CORS للسماح بالطلبات من نطاق GitHub Pages
-// تأكد من استبدال 'https://odc313.github.io' بنطاق GitHub Pages الفعلي الخاص بك إذا كان مختلفاً
+// تكوين CORS للسماح بالطلبات من GitHub Pages
 app.use(cors({
-  origin: 'https://odc313.github.io',
+  origin: 'https://odc313.github.io', // تأكد أن هذا هو نطاق GitHub Pages الصحيح
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type'],
 }));
 
-// إعداد Express لمعالجة JSON والملفات الثابتة
+// تمكين Express من تحليل طلبات JSON
 app.use(express.json());
-// app.use(express.static(path.join(__dirname, 'public'))); // هذا السطر لم يعد مطلوباً إذا كانت الواجهة الأمامية مستضافة بشكل منفصل
 
-// استيراد المسارات الأخرى المطلوبة فقط
-const analysisRouter = require('./routes/analysis');
-const monthlyStatsRouter = require('./routes/monthlyStats');
-const savingsRouter = require('./routes/savings'); // إضافة مسار المدخرات
+// استيراد مسارات API الأخرى
+const analysisRouter = require('./routes/analysis'); // تأكد من وجود ملف analysis.js داخل مجلد routes
+const monthlyStatsRouter = require('./routes/monthlyStats'); // تأكد من وجود ملف monthlyStats.js داخل مجلد routes
+const savingsRouter = require('./routes/savings'); // تأكد من وجود ملف savings.js داخل مجلد routes
 
-// استخدام المسارات المطلوبة
+// استخدام المسارات كـ middleware
 app.use('/analysis', analysisRouter);
 app.use('/monthly-stats', monthlyStatsRouter);
 app.use('/savings', savingsRouter);
 
-// اختبار الاتصال بقاعدة البيانات
+// اختبار اتصال قاعدة البيانات عند بدء التشغيل
 pool.connect()
   .then(client => {
     console.log("✅ اتصال ناجح بقاعدة البيانات");
-    client.release();
+    client.release(); // تحرير الاتصال بعد اختباره
   })
   .catch(err => console.error("❌ فشل الاتصال بقاعدة البيانات:", err.message));
 
-/*
-  نقطة نهاية لاسترجاع جميع المعاملات أو آخر معاملة (الميزانية الحالية)
-*/
+// نقطة نهاية لجلب آخر سجل للميزانية المالية (للوجهة الرئيسية للتطبيق)
 app.get('/transactions', async (req, res) => {
   try {
-    const lastRecordOnly = req.query.last === 'true';
-    let queryText = "SELECT * FROM transactions ORDER BY date DESC";
-    let values = [];
-
-    if (lastRecordOnly) {
-      queryText += " LIMIT 1";
-    }
-
-    const result = await pool.query(queryText, values);
+    const userId = 1; // افترض أن المستخدم هو 1، يمكنك تعديل هذا لاحقاً إذا أضفت إدارة المستخدمين
+    // جلب آخر سجل للميزانية المالية للشهر الحالي فقط للمستخدم
+    // نستخدم TO_CHAR(date, 'YYYY-MM') للمقارنة بالشهر الحالي
+    const currentMonth = new Date().toISOString().substring(0, 7); // 'YYYY-MM'
+    const queryText = `
+      SELECT * FROM transactions
+      WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2
+      ORDER BY date DESC LIMIT 1;
+    `;
+    const result = await pool.query(queryText, [userId, currentMonth]);
     res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error("Error fetching transactions:", err.message);
@@ -57,9 +54,7 @@ app.get('/transactions', async (req, res) => {
   }
 });
 
-/*
-  نقطة النهاية لحذف كل البيانات المالية من جدول transactions
-*/
+// نقطة نهاية لمسح جميع البيانات (للتجربة أو إعادة التعيين)
 app.delete('/clear-all', async (req, res) => {
   try {
     await pool.query("DELETE FROM transactions");
@@ -70,9 +65,7 @@ app.delete('/clear-all', async (req, res) => {
   }
 });
 
-/*
-  نقطة النهاية لحفظ البيانات المالية المُدخلة من الواجهة.
-*/
+// نقطة نهاية لحفظ وتحديث البيانات بشكل تراكمي للشهر الحالي
 app.post('/save-all', async (req, res) => {
   try {
     const {
@@ -88,23 +81,37 @@ app.post('/save-all', async (req, res) => {
       expenseOther
     } = req.body;
 
-    if (monthlySalary === undefined) {
-      return res.status(400).json({ success: false, error: "حقل الراتب الشهري مطلوب." });
-    }
-
-    const userId = 1;
-
+    const userId = 1; // افترض أن المستخدم هو 1
     const currentDate = new Date();
-    const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+    // الحصول على بداية الشهر الحالي بصيغة YYYY-MM-DD
+    const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0];
+    const currentMonthFormatted = currentDate.toISOString().substring(0, 7); // 'YYYY-MM'
 
+    // التحقق مما إذا كان هناك سجل للشهر الحالي للمستخدم
     const checkQuery = `
-      SELECT id FROM transactions
-      WHERE user_id = $1 AND to_char(date, 'YYYY-MM') = to_char($2::timestamp, 'YYYY-MM');
+      SELECT * FROM transactions
+      WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2;
     `;
-    const checkResult = await pool.query(checkQuery, [userId, currentMonthStart]);
+    const checkResult = await pool.query(checkQuery, [userId, currentMonthFormatted]);
 
     if (checkResult.rows.length > 0) {
-      const recordId = checkResult.rows[0].id;
+      // سجل موجود للشهر الحالي، قم بالتحديث التراكمي
+      const existingRecord = checkResult.rows[0];
+      const recordId = existingRecord.id;
+
+      // حساب القيم الجديدة بناءً على القيم الحالية في قاعدة البيانات والقيم المدخلة
+      // الراتب والمصروفات تتراكم
+      const newMonthlySalary = (existingRecord.monthly_salary || 0) + (monthlySalary || 0);
+      const newExpenseMedicine = (existingRecord.expense_medicine || 0) + (expenseMedicine || 0);
+      const newExpenseFood = (existingRecord.expense_food || 0) + (expenseFood || 0);
+      const newExpenseTransportation = (existingRecord.expense_transportation || 0) + (expenseTransportation || 0);
+      const newExpenseFamily = (existingRecord.expense_family || 0) + (expenseFamily || 0);
+      const newExpenseClothes = (existingRecord.expense_clothes || 0) + (expenseClothes || 0);
+      const newExpenseEntertainment = (existingRecord.expense_entertainment || 0) + (expenseEntertainment || 0);
+      const newExpenseEducation = (existingRecord.expense_education || 0) + (expenseEducation || 0);
+      const newExpenseBills = (existingRecord.expense_bills || 0) + (expenseBills || 0);
+      const newExpenseOther = (existingRecord.expense_other || 0) + (expenseOther || 0);
+
       const updateQuery = `
         UPDATE transactions
         SET
@@ -119,33 +126,36 @@ app.post('/save-all', async (req, res) => {
           expense_bills = $9,
           expense_other = $10,
           date = NOW()
-        WHERE id = $11
+        WHERE id = $11 AND user_id = $12
         RETURNING *;
       `;
       const updateValues = [
-        monthlySalary,
-        expenseMedicine || 0,
-        expenseFood || 0,
-        expenseTransportation || 0,
-        expenseFamily || 0,
-        expenseClothes || 0,
-        expenseEntertainment || 0,
-        expenseEducation || 0,
-        expenseBills || 0,
-        expenseOther || 0,
-        recordId
+        newMonthlySalary,
+        newExpenseMedicine,
+        newExpenseFood,
+        newExpenseTransportation,
+        newExpenseFamily,
+        newExpenseClothes,
+        newExpenseEntertainment,
+        newExpenseEducation,
+        newExpenseBills,
+        newExpenseOther,
+        recordId,
+        userId
       ];
       const result = await pool.query(updateQuery, updateValues);
-      res.json({ success: true, message: "تم تحديث الميزانية الشهرية بنجاح!", data: result.rows[0] });
+      res.json({ success: true, message: "تم تحديث الميزانية الشهرية بشكل تراكمي بنجاح!", data: result.rows[0] });
     } else {
+      // لا يوجد سجل للشهر الحالي، قم بإدراج سجل جديد
       const insertQuery = `
         INSERT INTO transactions
         (user_id, monthly_salary, expense_medicine, expense_food, expense_transportation, expense_family, expense_clothes, expense_entertainment, expense_education, expense_bills, expense_other, date)
-        VALUES (1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
         RETURNING *;
       `;
       const insertValues = [
-        monthlySalary,
+        userId,
+        monthlySalary || 0,
         expenseMedicine || 0,
         expenseFood || 0,
         expenseTransportation || 0,
@@ -165,7 +175,7 @@ app.post('/save-all', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // استخدام متغير بيئة PORT لـ Render
 app.listen(PORT, () => {
   console.log(`🚀 الخادم يعمل على http://localhost:${PORT}`);
 });

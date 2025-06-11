@@ -1,57 +1,79 @@
 // public/script.js
 document.addEventListener("DOMContentLoaded", function () {
-  // تعريف Base URL للخادم المنشور
   const BASE_SERVER_URL = "https://statistics-app.onrender.com";
 
-  // جلب آخر ميزانية شهرية عند تحميل الصفحة لملء حقول الإدخال
-  fetchLastMonthlyBudget(BASE_SERVER_URL);
-  // جلب التحليل الإجمالي عند تحميل الصفحة
-  fetchAnalysis(BASE_SERVER_URL);
-  // جلب إحصائيات الأشهر السابقة عند تحميل الصفحة
-  fetchMonthlyStats(BASE_SERVER_URL);
+  // دالة جديدة لدمج جلب البيانات الأولية عند تحميل الصفحة
+  initializeDashboard(BASE_SERVER_URL);
 
   document.getElementById("allDataForm").addEventListener("submit", (event) => saveAllData(event, BASE_SERVER_URL));
   document.getElementById("clearDataBtn").addEventListener("click", () => clearAllData(BASE_SERVER_URL));
   document.getElementById("openStatsPopupBtn").addEventListener("click", toggleMonthlyStatsPopup);
 });
 
-// وظيفة جديدة لجلب آخر ميزانية شهرية وملء النموذج
-async function fetchLastMonthlyBudget(baseUrl) {
+// دالة جديدة لدمج جلب البيانات الأولية وتحديث الواجهة
+async function initializeDashboard(baseUrl) {
   try {
-    const res = await fetch(`${baseUrl}/transactions?last=true`); // طلب آخر سجل واحد
+    const res = await fetch(`${baseUrl}/transactions`);
     const result = await res.json();
 
-    if (result.success && result.data.length > 0) {
-      const latestBudget = result.data[0];
-      // ملء حقول النموذج بالبيانات المسترجعة
-      document.getElementById("monthlySalary").value = latestBudget.monthly_salary || 0;
-      document.getElementById("expenseMedicine").value = latestBudget.expense_medicine || 0;
-      document.getElementById("expenseFood").value = latestBudget.expense_food || 0;
-      document.getElementById("expenseTransportation").value = latestBudget.expense_transportation || 0;
-      document.getElementById("expenseFamily").value = latestBudget.expense_family || 0;
-      document.getElementById("expenseClothes").value = latestBudget.expense_clothes || 0;
-      document.getElementById("expenseEntertainment").value = latestBudget.expense_entertainment || 0;
-      document.getElementById("expenseEducation").value = latestBudget.expense_education || 0;
-      document.getElementById("expenseBills").value = latestBudget.expense_bills || 0;
-      document.getElementById("expenseOther").value = latestBudget.expense_other || 0;
+    if (result.success) {
+      // 1. ملء حقول النموذج بآخر سجل (كما كان سابقاً)
+      const lastRecord = result.last_record;
+      if (lastRecord) {
+          document.getElementById("monthlySalary").value = lastRecord.monthly_salary || 0;
+          document.getElementById("expenseMedicine").value = lastRecord.expense_medicine || 0;
+          document.getElementById("expenseFood").value = lastRecord.expense_food || 0;
+          document.getElementById("expenseTransportation").value = lastRecord.expense_transportation || 0;
+          document.getElementById("expenseFamily").value = lastRecord.expense_family || 0;
+          document.getElementById("expenseClothes").value = lastRecord.expense_clothes || 0;
+          document.getElementById("expenseEntertainment").value = lastRecord.expense_entertainment || 0;
+          document.getElementById("expenseEducation").value = lastRecord.expense_education || 0;
+          document.getElementById("expenseBills").value = lastRecord.expense_bills || 0;
+          document.getElementById("expenseOther").value = lastRecord.expense_other || 0;
+      } else {
+          // إذا لم توجد بيانات على الإطلاق، قم بتعيين الحقول إلى 0
+          document.getElementById("monthlySalary").value = 0;
+          document.getElementById("expenseMedicine").value = 0;
+          document.getElementById("expenseFood").value = 0;
+          document.getElementById("expenseTransportation").value = 0;
+          document.getElementById("expenseFamily").value = 0;
+          document.getElementById("expenseClothes").value = 0;
+          document.getElementById("expenseEntertainment").value = 0;
+          document.getElementById("expenseEducation").value = 0;
+          document.getElementById("expenseBills").value = 0;
+          document.getElementById("expenseOther").value = 0;
+      }
+
+      // 2. تحديث تحليل الميزانية المالية ببيانات الشهر الحالي المجمعة (النقطة 1)
+      const currentMonthData = result.current_month_summary;
+      if (currentMonthData) {
+          document.getElementById("analysisResults").innerHTML = `
+            <li><strong>💰 الراتب الشهري:</strong> ${parseFloat(currentMonthData.monthly_salary).toFixed(2)} دينار</li>
+            <li><strong>📉 المصروفات:</strong> ${parseFloat(currentMonthData.total_expenses).toFixed(2)} دينار</li>
+            <li><strong>❤️ الصدقة:</strong> ${parseFloat(currentMonthData.expense_charity).toFixed(2)} دينار</li>
+            <li><strong>📌 جاهز للصدقة:</strong> ${parseFloat(currentMonthData.ready_for_charity).toFixed(2)} دينار</li>
+            <li><strong>💰 جاهز للادخار:</strong> ${parseFloat(currentMonthData.ready_for_savings).toFixed(2)} دينار</li>`;
+      } else {
+        // إذا لم توجد بيانات للشهر الحالي، اعرض أصفار
+        document.getElementById("analysisResults").innerHTML = `
+          <li><strong>💰 الراتب الشهري:</strong> 0.00 دينار</li>
+          <li><strong>📉 المصروفات:</strong> 0.00 دينار</li>
+          <li><strong>❤️ الصدقة:</strong> 0.00 دينار</li>
+          <li><strong>📌 جاهز للصدقة:</strong> 0.00 دينار</li>
+          <li><strong>💰 جاهز للادخار:</strong> 0.00 دينار</li>`;
+      }
     } else {
-      console.log("لا توجد بيانات ميزانية سابقة لملء النموذج.");
-      // إذا لم توجد بيانات، يمكن ترك الحقول كما هي أو تعيينها إلى 0 بشكل صريح
-      document.getElementById("monthlySalary").value = 0;
-      document.getElementById("expenseMedicine").value = 0;
-      document.getElementById("expenseFood").value = 0;
-      document.getElementById("expenseTransportation").value = 0;
-      document.getElementById("expenseFamily").value = 0;
-      document.getElementById("expenseClothes").value = 0;
-      document.getElementById("expenseEntertainment").value = 0;
-      document.getElementById("expenseEducation").value = 0;
-      document.getElementById("expenseBills").value = 0;
-      document.getElementById("expenseOther").value = 0;
+      console.error("❌ خطأ أثناء جلب البيانات الأولية:", result.error || "خطأ غير معروف");
+      document.getElementById("analysisResults").innerHTML = "<li>❌ حدث خطأ أثناء تحميل التحليل.</li>";
     }
   } catch (error) {
-    console.error("❌ خطأ أثناء جلب آخر ميزانية شهرية:", error);
+    console.error("❌ خطأ أثناء جلب البيانات الأولية:", error);
+    document.getElementById("analysisResults").innerHTML = "<li>❌ حدث خطأ أثناء تحميل التحليل.</li>";
   }
+  // جلب إحصائيات الأشهر السابقة عند تحميل الصفحة
+  fetchMonthlyStats(baseUrl);
 }
+
 
 async function saveAllData(event, baseUrl) {
   event.preventDefault();
@@ -77,7 +99,6 @@ async function saveAllData(event, baseUrl) {
   if (!confirmation) return;
 
   try {
-    // إرسال البيانات بالهيكل المطلوب للخادم
     const res = await fetch(`${baseUrl}/save-all`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -97,9 +118,8 @@ async function saveAllData(event, baseUrl) {
     const result = await res.json();
     if (result.success) {
       alert(result.message || "✅ تم حفظ جميع البيانات بنجاح!");
-      fetchAnalysis(baseUrl);         // هذا المسار كان يجلب التحليل
-      fetchMonthlyStats(baseUrl);     // هذا المسار كان يجلب التقارير
-      // لا حاجة لـ fetchLastMonthlyBudget هنا لأن النموذج يظل بنفس القيم المدخلة
+      // بعد الحفظ الناجح، قم بتحديث الواجهة الرئيسية وحقول الإدخال
+      await initializeDashboard(baseUrl); // استدعاء الدالة الجديدة لتحديث الواجهة بالكامل
     } else {
       alert("❌ حدث خطأ أثناء حفظ البيانات: " + (result.error || ""));
     }
@@ -109,21 +129,8 @@ async function saveAllData(event, baseUrl) {
   }
 }
 
-async function fetchAnalysis(baseUrl) {
-  try {
-    const res = await fetch(`${baseUrl}/analysis`); // هذا المسار كان يجلب التحليل
-    const data = await res.json();
-    document.getElementById("analysisResults").innerHTML = `
-      <li><strong>💰 الراتب الشهري:</strong> ${parseFloat(data["💰 الراتب الشهري"]).toFixed(2)} دينار</li>
-      <li><strong>📉 المصروفات:</strong> ${parseFloat(data["📉 المصروفات"]).toFixed(2)} دينار</li>
-      <li><strong>❤️ الصدقة:</strong> ${parseFloat(data["❤️ الصدقة"]).toFixed(2)} دينار</li>
-      <li><strong>📌 جاهز للصدقة:</strong> ${parseFloat(data["📌 جاهز للصدقة"]).toFixed(2)} دينار</li>
-      <li><strong>💰 جاهز للادخار:</strong> ${parseFloat(data["💰 جاهز للادخار"]).toFixed(2)} دينار</li>`;
-  } catch (error) {
-    console.error("❌ خطأ أثناء جلب تحليل الميزانية:", error);
-    document.getElementById("analysisResults").innerHTML = "<li>❌ حدث خطأ أثناء تحميل التحليل.</li>";
-  }
-}
+// وظيفة fetchAnalysis الأصلية تم دمجها في initializeDashboard
+// ولن يتم استدعاؤها بشكل منفصل بعد الآن
 
 async function clearAllData(baseUrl) {
   const confirmation = confirm("⚠️ هل أنت متأكد أنك تريد إزالة جميع البيانات المالية؟ هذا الإجراء لا يمكن التراجع عنه!");
@@ -134,9 +141,8 @@ async function clearAllData(baseUrl) {
     const result = await res.json();
     if (result.success) {
       alert("✅ تم حذف جميع البيانات!");
-      fetchLastMonthlyBudget(baseUrl); // لإعادة تعيين النموذج إلى القيم الافتراضية (0)
-      fetchAnalysis(baseUrl);
-      fetchMonthlyStats(baseUrl);
+      // بعد الحذف، قم بإعادة تعيين النموذج وعرض البيانات المحدثة
+      await initializeDashboard(baseUrl); // استدعاء الدالة الجديدة لتحديث الواجهة بالكامل
     } else {
       alert("❌ حدث خطأ أثناء حذف البيانات: " + (result.error || ""));
     }
@@ -146,10 +152,12 @@ async function clearAllData(baseUrl) {
   }
 }
 
+// هذا الكود لم يتغير، وهو يعرض التقارير بشكل صحيح.
+// فقط تأكد أن مسار server.js/monthly-stats/monthly-summary يرسل البيانات بالتنسيق الصحيح.
 async function fetchMonthlyStats(baseUrl) {
   try {
-    const res = await fetch(`${baseUrl}/monthly-stats`); // هذا المسار كان يجلب التقارير
-    const stats = await res.json();
+    const res = await fetch(`${baseUrl}/monthly-stats`);
+    const stats = await res.json(); // هذا يتوقع كائن JSON مباشرةً
     const container = document.getElementById("statsContainer");
     container.innerHTML = "";
 
@@ -165,6 +173,8 @@ async function fetchMonthlyStats(baseUrl) {
                  <ul>
                    <li><strong>💰 الراتب الشهري:</strong> ${parseFloat(data["💰 الراتب الشهري"]).toFixed(2)} دينار</li>
                    <li><strong>📉 المصروفات:</strong> ${parseFloat(data["📉 المصروفات"]).toFixed(2)} دينار</li>
+                   <li><strong>❤️ الصدقة:</strong> ${parseFloat(data["❤️ الصدقة"]).toFixed(2)} دينار</li>
+                   <li><strong>📌 جاهز للصدقة:</strong> ${parseFloat(data["📌 جاهز للصدقة"]).toFixed(2)} دينار</li>
                    <li><strong>💰 جاهز للادخار:</strong> ${parseFloat(data["💰 جاهز للادخار"]).toFixed(2)} دينار</li>
                  </ul>
                </li>`;

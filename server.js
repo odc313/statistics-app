@@ -14,7 +14,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// استيراد مسارات API الأخرى (كما كانت في نسختك السابقة)
+// استيراد مسارات API الأخرى (لم تتغير)
 const analysisRouter = require('./routes/analysis');
 const monthlyStatsRouter = require('./routes/monthlyStats');
 const savingsRouter = require('./routes/savings');
@@ -30,25 +30,74 @@ pool.connect()
   })
   .catch(err => console.error("❌ فشل الاتصال بقاعدة البيانات:", err.message));
 
-// نقطة نهاية لجلب آخر سجل واحد (هذا ما كانت تفعله في نسختك السابقة)
-// هذه الوظيفة ستستخدم لملء حقول الإدخال.
+// نقطة نهاية لجلب آخر سجل (للحقول) وسجل الشهر الحالي المجمع (للتحليل)
 app.get('/transactions', async (req, res) => {
   try {
     const userId = 1;
+    const currentDate = new Date();
+    const currentMonthFormatted = currentDate.toISOString().substring(0, 7); // 'YYYY-MM'
 
-    const queryText = `
+    // 1. جلب آخر سجل للمستخدم (لإعادة ملء حقول الإدخال)
+    const lastRecordQuery = `
       SELECT * FROM transactions
       WHERE user_id = $1
       ORDER BY date DESC
       LIMIT 1;
     `;
-    const result = await pool.query(queryText, [userId]);
+    const lastRecordResult = await pool.query(lastRecordQuery, [userId]);
+    const lastRecord = lastRecordResult.rows.length > 0 ? lastRecordResult.rows[0] : null;
 
-    if (result.rows.length > 0) {
-      res.json({ success: true, data: result.rows });
-    } else {
-      res.json({ success: true, data: [] });
-    }
+    // 2. جلب السجل المجمع للشهر الحالي (لتحليل الميزانية المالية)
+    const currentMonthSummaryQuery = `
+      SELECT
+        SUM(monthly_salary) AS total_monthly_salary,
+        SUM(expense_medicine) AS total_expense_medicine,
+        SUM(expense_food) AS total_expense_food,
+        SUM(expense_transportation) AS total_expense_transportation,
+        SUM(expense_family) AS total_expense_family,
+        SUM(expense_clothes) AS total_expense_clothes,
+        SUM(expense_entertainment) AS total_expense_entertainment,
+        SUM(expense_education) AS total_expense_education,
+        SUM(expense_bills) AS total_expense_bills,
+        SUM(expense_other) AS total_expense_other
+      FROM transactions
+      WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2;
+    `;
+    const currentMonthSummaryResult = await pool.query(currentMonthSummaryQuery, [userId, currentMonthFormatted]);
+    const currentMonthSummaryData = currentMonthSummaryResult.rows[0]; // سيعيد صفاً واحداً دائماً
+
+    // حساب المجاميع الفعلية للشهر الحالي وضمان عدم ظهور NaN
+    const monthly_salary_sum = parseFloat(currentMonthSummaryData.total_monthly_salary || 0);
+    const expense_medicine_sum = parseFloat(currentMonthSummaryData.total_expense_medicine || 0);
+    const expense_food_sum = parseFloat(currentMonthSummaryData.total_expense_food || 0);
+    const expense_transportation_sum = parseFloat(currentMonthSummaryData.total_expense_transportation || 0);
+    const expense_family_sum = parseFloat(currentMonthSummaryData.total_expense_family || 0);
+    const expense_clothes_sum = parseFloat(currentMonthSummaryData.total_expense_clothes || 0);
+    const expense_entertainment_sum = parseFloat(currentMonthSummaryData.total_expense_entertainment || 0);
+    const expense_education_sum = parseFloat(currentMonthSummaryData.total_expense_education || 0);
+    const expense_bills_sum = parseFloat(currentMonthSummaryData.total_expense_bills || 0);
+    const expense_other_sum = parseFloat(currentMonthSummaryData.total_expense_other || 0);
+
+    const totalExpensesSum = expense_medicine_sum + expense_food_sum + expense_transportation_sum +
+                          expense_family_sum + expense_clothes_sum + expense_entertainment_sum +
+                          expense_education_sum + expense_bills_sum + expense_other_sum;
+
+    const readyForCharitySum = Math.max(0, monthly_salary_sum - totalExpensesSum);
+    const expenseCharitySum = readyForCharitySum * 0.10; // 10% من جاهز للصدقة
+    const readyForSavingsSum = readyForCharitySum - expenseCharitySum;
+
+    res.json({
+      success: true,
+      last_record: lastRecord, // آخر سجل لملء حقول الإدخال
+      current_month_summary: { // مجاميع الشهر الحالي للتحليل
+        monthly_salary: monthly_salary_sum,
+        total_expenses: totalExpensesSum,
+        expense_charity: expenseCharitySum,
+        ready_for_charity: readyForCharitySum,
+        ready_for_savings: readyForSavingsSum
+      }
+    });
+
   } catch (err) {
     console.error("Error fetching transactions:", err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -66,9 +115,7 @@ app.delete('/clear-all', async (req, res) => {
   }
 });
 
-// نقطة نهاية لحفظ وتحديث البيانات بشكل تراكمي للشهر الحالي
-// هذه هي النسخة التي كانت تسبب مشكلة عدم التراكم الصحيح
-// حيث كانت تحدث سجل واحد فقط أو تنشئ سجل جديد.
+// نقطة نهاية لحفظ البيانات (دائماً INSERT) لضمان التراكم الصحيح عبر SUM (النقطة 2)
 app.post('/save-all', async (req, res) => {
   try {
     const {
@@ -85,92 +132,33 @@ app.post('/save-all', async (req, res) => {
     } = req.body;
 
     const userId = 1;
-    const currentDate = new Date();
-    const currentMonthFormatted = currentDate.toISOString().substring(0, 7); // 'YYYY-MM'
 
-    // التحقق مما إذا كان هناك سجل للشهر الحالي للمستخدم
-    const checkQuery = `
-      SELECT * FROM transactions
-      WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2
-      ORDER BY date DESC LIMIT 1;
+    // دائماً قم بإدراج سجل جديد
+    const insertQuery = `
+      INSERT INTO transactions
+      (user_id, monthly_salary, expense_medicine, expense_food, expense_transportation, expense_family, expense_clothes, expense_entertainment, expense_education, expense_bills, expense_other, date)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+      RETURNING *;
     `;
-    const checkResult = await pool.query(checkQuery, [userId, currentMonthFormatted]);
+    const insertValues = [
+      userId,
+      monthlySalary || 0,
+      expenseMedicine || 0,
+      expenseFood || 0,
+      expenseTransportation || 0,
+      expenseFamily || 0,
+      expenseClothes || 0,
+      expenseEntertainment || 0,
+      expenseEducation || 0,
+      expenseBills || 0,
+      expenseOther || 0,
+    ];
+    const result = await pool.query(insertQuery, insertValues);
 
-    if (checkResult.rows.length > 0) {
-      const existingRecord = checkResult.rows[0];
-      const recordId = existingRecord.id;
+    res.json({ success: true, message: "تم تسجيل إدخال جديد بنجاح!", data: result.rows[0] });
 
-      // هنا يتم إضافة القيم الجديدة إلى القيم الموجودة
-      const newMonthlySalary = (existingRecord.monthly_salary || 0) + (monthlySalary || 0);
-      const newExpenseMedicine = (existingRecord.expense_medicine || 0) + (expenseMedicine || 0);
-      const newExpenseFood = (existingRecord.expense_food || 0) + (expenseFood || 0);
-      const newExpenseTransportation = (existingRecord.expense_transportation || 0) + (expenseTransportation || 0);
-      const newExpenseFamily = (existingRecord.expense_family || 0) + (expenseFamily || 0);
-      const newExpenseClothes = (existingRecord.expense_clothes || 0) + (expenseClothes || 0);
-      const newExpenseEntertainment = (existingRecord.expense_entertainment || 0) + (expenseEntertainment || 0);
-      const newExpenseEducation = (existingRecord.expense_education || 0) + (expenseEducation || 0);
-      const newExpenseBills = (existingRecord.expense_bills || 0) + (expenseBills || 0);
-      const newExpenseOther = (existingRecord.expense_other || 0) + (expenseOther || 0);
-
-      const updateQuery = `
-        UPDATE transactions
-        SET
-          monthly_salary = $1,
-          expense_medicine = $2,
-          expense_food = $3,
-          expense_transportation = $4,
-          expense_family = $5,
-          expense_clothes = $6,
-          expense_entertainment = $7,
-          expense_education = $8,
-          expense_bills = $9,
-          expense_other = $10,
-          date = NOW()
-        WHERE id = $11 AND user_id = $12
-        RETURNING *;
-      `;
-      const updateValues = [
-        newMonthlySalary,
-        newExpenseMedicine,
-        newExpenseFood,
-        newExpenseTransportation,
-        newExpenseFamily,
-        newExpenseClothes,
-        newExpenseEntertainment,
-        newExpenseEducation,
-        newExpenseBills,
-        newExpenseOther,
-        recordId,
-        userId
-      ];
-      const result = await pool.query(updateQuery, updateValues);
-      res.json({ success: true, message: "تم تحديث الميزانية الشهرية بنجاح!", data: result.rows[0] });
-    } else {
-      // لا يوجد سجل للشهر الحالي، قم بإدراج سجل جديد
-      const insertQuery = `
-        INSERT INTO transactions
-        (user_id, monthly_salary, expense_medicine, expense_food, expense_transportation, expense_family, expense_clothes, expense_entertainment, expense_education, expense_bills, expense_other, date)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
-        RETURNING *;
-      `;
-      const insertValues = [
-        userId,
-        monthlySalary || 0,
-        expenseMedicine || 0,
-        expenseFood || 0,
-        expenseTransportation || 0,
-        expenseFamily || 0,
-        expenseClothes || 0,
-        expenseEntertainment || 0,
-        expenseEducation || 0,
-        expenseBills || 0,
-        expenseOther || 0,
-      ];
-      const result = await pool.query(insertQuery, insertValues);
-      res.json({ success: true, message: "تم حفظ ميزانية شهرية جديدة بنجاح!", data: result.rows[0] });
-    }
   } catch (error) {
-    console.error("Error saving/updating transaction:", error.message);
+    console.error("Error saving new transaction entry:", error.message);
     res.status(500).json({ success: false, error: error.message });
   }
 });

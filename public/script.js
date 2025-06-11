@@ -173,8 +173,6 @@ async function fetchMonthlyStats(baseUrl) {
                  <ul>
                    <li><strong>💰 الراتب الشهري:</strong> ${parseFloat(data["💰 الراتب الشهري"]).toFixed(2)} دينار</li>
                    <li><strong>📉 المصروفات:</strong> ${parseFloat(data["📉 المصروفات"]).toFixed(2)} دينار</li>
-                   <li><strong>❤️ الصدقة:</strong> ${parseFloat(data["❤️ الصدقة"]).toFixed(2)} دينار</li>
-                   <li><strong>📌 جاهز للصدقة:</strong> ${parseFloat(data["📌 جاهز للصدقة"]).toFixed(2)} دينار</li>
                    <li><strong>💰 جاهز للادخار:</strong> ${parseFloat(data["💰 جاهز للادخار"]).toFixed(2)} دينار</li>
                  </ul>
                </li>`;

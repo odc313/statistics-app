@@ -1,52 +1,66 @@
 // server.js
 const express = require('express');
 const path = require('path');
-const pool = require('./db'); // التأكد من أن db.js موجود في نفس المجلد
+const pool = require('./db');
 const cors = require('cors');
 
 const app = express();
 
-// تكوين CORS للسماح بالطلبات من GitHub Pages
 app.use(cors({
-  origin: 'https://odc313.github.io', // تأكد أن هذا هو نطاق GitHub Pages الصحيح
+  origin: 'https://odc313.github.io',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type'],
 }));
 
-// تمكين Express من تحليل طلبات JSON
 app.use(express.json());
 
-// استيراد مسارات API الأخرى
-const analysisRouter = require('./routes/analysis'); // تأكد من وجود ملف analysis.js داخل مجلد routes
-const monthlyStatsRouter = require('./routes/monthlyStats'); // تأكد من وجود ملف monthlyStats.js داخل مجلد routes
-const savingsRouter = require('./routes/savings'); // تأكد من وجود ملف savings.js داخل مجلد routes
+const analysisRouter = require('./routes/analysis');
+const monthlyStatsRouter = require('./routes/monthlyStats');
+const savingsRouter = require('./routes/savings');
 
-// استخدام المسارات كـ middleware
 app.use('/analysis', analysisRouter);
 app.use('/monthly-stats', monthlyStatsRouter);
 app.use('/savings', savingsRouter);
 
-// اختبار اتصال قاعدة البيانات عند بدء التشغيل
 pool.connect()
   .then(client => {
     console.log("✅ اتصال ناجح بقاعدة البيانات");
-    client.release(); // تحرير الاتصال بعد اختباره
+    client.release();
   })
   .catch(err => console.error("❌ فشل الاتصال بقاعدة البيانات:", err.message));
 
-// نقطة نهاية لجلب آخر سجل للميزانية المالية (للوجهة الرئيسية للتطبيق)
+// نقطة نهاية لجلب السجل المجمع للشهر الحالي فقط للواجهة الرئيسية
 app.get('/transactions', async (req, res) => {
   try {
-    const userId = 1; // افترض أن المستخدم هو 1، يمكنك تعديل هذا لاحقاً إذا أضفت إدارة المستخدمين
-    // جلب آخر سجل للميزانية المالية للشهر الحالي فقط للمستخدم
-    // نستخدم TO_CHAR(date, 'YYYY-MM') للمقارنة بالشهر الحالي
-    const currentMonth = new Date().toISOString().substring(0, 7); // 'YYYY-MM'
+    const userId = 1; // افترض أن المستخدم هو 1
+    const currentDate = new Date();
+    const currentMonthFormatted = currentDate.toISOString().substring(0, 7); // 'YYYY-MM'
+
+    // الاستعلام لجلب السجل الخاص بالشهر الحالي فقط
     const queryText = `
       SELECT * FROM transactions
       WHERE user_id = $1 AND TO_CHAR(date, 'YYYY-MM') = $2
       ORDER BY date DESC LIMIT 1;
     `;
-    const result = await pool.query(queryText, [userId, currentMonth]);
+    const result = await pool.query(queryText, [userId, currentMonthFormatted]);
+    
+    // إذا لم يكن هناك سجل للشهر الحالي، أرسل بيانات فارغة أو افتراضية
+    if (result.rows.length === 0) {
+      return res.json({ success: true, data: [{
+        monthly_salary: 0,
+        expense_medicine: 0,
+        expense_food: 0,
+        expense_transportation: 0,
+        expense_family: 0,
+        expense_clothes: 0,
+        expense_entertainment: 0,
+        expense_education: 0,
+        expense_bills: 0,
+        expense_other: 0,
+        // يمكنك إضافة حقول أخرى هنا بقيم افتراضية إذا كانت الواجهة الأمامية تتوقعها
+      }] });
+    }
+
     res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error("Error fetching transactions:", err.message);
@@ -54,7 +68,6 @@ app.get('/transactions', async (req, res) => {
   }
 });
 
-// نقطة نهاية لمسح جميع البيانات (للتجربة أو إعادة التعيين)
 app.delete('/clear-all', async (req, res) => {
   try {
     await pool.query("DELETE FROM transactions");
@@ -65,7 +78,6 @@ app.delete('/clear-all', async (req, res) => {
   }
 });
 
-// نقطة نهاية لحفظ وتحديث البيانات بشكل تراكمي للشهر الحالي
 app.post('/save-all', async (req, res) => {
   try {
     const {
@@ -83,8 +95,6 @@ app.post('/save-all', async (req, res) => {
 
     const userId = 1; // افترض أن المستخدم هو 1
     const currentDate = new Date();
-    // الحصول على بداية الشهر الحالي بصيغة YYYY-MM-DD
-    const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).toISOString().split('T')[0];
     const currentMonthFormatted = currentDate.toISOString().substring(0, 7); // 'YYYY-MM'
 
     // التحقق مما إذا كان هناك سجل للشهر الحالي للمستخدم
@@ -99,8 +109,6 @@ app.post('/save-all', async (req, res) => {
       const existingRecord = checkResult.rows[0];
       const recordId = existingRecord.id;
 
-      // حساب القيم الجديدة بناءً على القيم الحالية في قاعدة البيانات والقيم المدخلة
-      // الراتب والمصروفات تتراكم
       const newMonthlySalary = (existingRecord.monthly_salary || 0) + (monthlySalary || 0);
       const newExpenseMedicine = (existingRecord.expense_medicine || 0) + (expenseMedicine || 0);
       const newExpenseFood = (existingRecord.expense_food || 0) + (expenseFood || 0);
@@ -175,7 +183,7 @@ app.post('/save-all', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000; // استخدام متغير بيئة PORT لـ Render
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 الخادم يعمل على http://localhost:${PORT}`);
 });

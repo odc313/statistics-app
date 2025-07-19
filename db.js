@@ -2,10 +2,9 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL ||
-    'postgresql://sajid:z8WWp2IufsgqlmiI1kGgF413hNj61Z6a@dpg-d125sc95pdvs73cdba4g-a.oregon-postgres.render.com/finance_a24z',
-  ssl: { rejectUnauthorized: false } // مطلوب للاتصال الآمن في بيئة Render
+  connectionString: process.env.DATABASE_URL ||
+    'postgresql://neondb_owner:npg_l8LByFaeZO6D@ep-morning-surf-aezdbkw2-pooler.c-2.us-east-2.aws.neon.tech/finance-db?sslmode=require&channel_binding=require',
+  ssl: { rejectUnauthorized: false }
 });
 
 module.exports = pool;

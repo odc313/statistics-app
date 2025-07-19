@@ -1,3 +1,5 @@
+//savings.js
+
 const express = require('express');
 const router = express.Router();
 const pool = require('../db'); // تأكد من إعداد ملف db.js للاتصال بقاعدة بيانات PostgreSQL
